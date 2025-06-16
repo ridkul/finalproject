@@ -19,3 +19,5 @@ class User(Base):
     __mapper_args__ = {
         "eager_defaults": True
     }
+# Add this to the User class
+    services = relationship("Service", back_populates="provider")
