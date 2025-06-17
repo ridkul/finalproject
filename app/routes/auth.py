@@ -7,7 +7,7 @@ from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt_handler import create_access_token, create_password_reset_token, verify_reset_token
 from app.utils import send_password_reset_email
 
-router = APIRouter(tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserOut)
 def register(user: UserCreate, db: Session = Depends(get_db)):

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Enum
+from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
 
@@ -19,5 +20,4 @@ class User(Base):
     __mapper_args__ = {
         "eager_defaults": True
     }
-# Add this to the User class
-    services = relationship("Service", back_populates="provider")
+    services = relationship("Service", back_populates="provider", cascade="all, delete-orphan")

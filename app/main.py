@@ -1,12 +1,26 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routes import auth
+from app.routes import auth, service
 from app.models import user  # This is to ensure the model is registered
+
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Create the database tables
 Base.metadata.create_all(bind=engine)
-# Include the auth router
-app.include_router(auth.router)
+
+# Include the routers
+app.include_router(auth.router, prefix="/api")
+app.include_router(service.router, prefix="/api")
 
 @app.get("/")
 def home():
