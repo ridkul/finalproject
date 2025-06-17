@@ -1,0 +1,61 @@
+import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Container, Typography, Button, CircularProgress, Alert } from '@mui/material';
+import { getService } from '../api/serviceApi';
+
+const ServiceDetail = () => {
+  const { id } = useParams();
+  const [service, setService] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchService = async () => {
+      try {
+        setLoading(true);
+        const response = await getService(id);
+        setService(response.data);
+      } catch (err) {
+        setError('Service not found');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchService();
+  }, [id]);
+
+  if (loading) {
+    return <CircularProgress />;
+  }
+
+  if (error) {
+    return <Alert severity="error">{error}</Alert>;
+  }
+
+  return (
+    <Container>
+      <Typography variant="h3" gutterBottom>
+        {service.title}
+      </Typography>
+      
+      <Typography variant="h5" color="primary" gutterBottom>
+        ${service.price.toFixed(2)}
+      </Typography>
+      
+      <Typography variant="subtitle1" gutterBottom>
+        Category: {service.category} | Location: {service.location}
+      </Typography>
+      
+      <Typography variant="body1" paragraph sx={{ my: 3 }}>
+        {service.description}
+      </Typography>
+      
+      <Button variant="contained" color="primary" size="large">
+        Book This Service
+      </Button>
+    </Container>
+  );
+};
+
+export default ServiceDetail;
