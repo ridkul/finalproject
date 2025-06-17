@@ -7,6 +7,9 @@ import ProviderDashboard from './pages/ProviderDashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ServiceDetail from './pages/ServiceDetail';
+// Add these imports
+import ChatPage from './pages/ChatPage';
+import ChatListPage from './pages/ChatListPage';
 
 function App() {
   return (
@@ -26,8 +29,14 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
+      // Add these routes
+<Route path="/chats" element={<ChatListPage />} />
+<Route path="/chat/:otherUserId" element={<ChatPage />} />
     </AuthProvider>
   );
 }
 
+
 export default App;
+
+

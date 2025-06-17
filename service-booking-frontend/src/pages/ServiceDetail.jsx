@@ -2,6 +2,8 @@ import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Container, Typography, Button, CircularProgress, Alert } from '@mui/material';
 import { getService } from '../api/serviceApi';
+import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 const ServiceDetail = () => {
   const { id } = useParams();
@@ -58,4 +60,19 @@ const ServiceDetail = () => {
   );
 };
 
+// Inside the component
+const { user } = useAuth();
+
+// Add this to the UI
+{user && user.role === 'user' && (
+  <Button 
+    component={Link} 
+    to={`/chat/${service.provider_id}`}
+    variant="contained" 
+    color="secondary"
+    sx={{ mt: 2, mr: 2 }}
+  >
+    Message Provider
+  </Button>
+)}
 export default ServiceDetail;
