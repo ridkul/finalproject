@@ -70,3 +70,5 @@ def reset_password(request: PasswordReset, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Password has been reset successfully"}
+
+

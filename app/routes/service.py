@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.service import Service
+from app.models.service import Service as ServiceModel
 from app.models.user import User
-from app.schemas.service import ServiceCreate, ServiceUpdate, Service
+from app.schemas.service import ServiceCreate, ServiceUpdate, Service as ServiceSchema
 from app.auth.jwt_handler import get_current_user
 
 router = APIRouter(prefix="/services", tags=["Services"])
 
-@router.post("/", response_model=Service, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ServiceSchema, status_code=status.HTTP_201_CREATED)
 def create_service(
     service: ServiceCreate,
     db: Session = Depends(get_db),
@@ -20,7 +20,7 @@ def create_service(
             detail="Only providers can create services"
         )
     
-    new_service = Service(
+    new_service = ServiceModel(
         **service.model_dump(),
         provider_id=current_user.id
     )
@@ -30,24 +30,24 @@ def create_service(
     return new_service
 
 # Get all services (public endpoint)
-@router.get("/", response_model=list[Service])
+@router.get("/", response_model=list[ServiceSchema])
 def get_all_services(
     db: Session = Depends(get_db),
     category: str = None,  # Optional filter
     location: str = None   # Optional filter
 ):
-    query = db.query(Service)
+    query = db.query(ServiceModel)
     
     if category:
-        query = query.filter(Service.category.ilike(f"%{category}%"))
+        query = query.filter(ServiceModel.category.ilike(f"%{category}%"))
     
     if location:
-        query = query.filter(Service.location.ilike(f"%{location}%"))
+        query = query.filter(ServiceModel.location.ilike(f"%{location}%"))
     
     return query.all()
 
 # Get services for current provider
-@router.get("/my-services", response_model=list[Service])
+@router.get("/my-services", response_model=list[ServiceSchema])
 def get_my_services(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -58,15 +58,15 @@ def get_my_services(
             detail="Only providers can view their services"
         )
     
-    return db.query(Service).filter(Service.provider_id == current_user.id).all()
+    return db.query(ServiceModel).filter(ServiceModel.provider_id == current_user.id).all()
 
 # Get single service by ID (public)
-@router.get("/{service_id}", response_model=Service)
+@router.get("/{service_id}", response_model=ServiceSchema)
 def get_service(
     service_id: int,
     db: Session = Depends(get_db)
 ):
-    service = db.query(Service).filter(Service.id == service_id).first()
+    service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
     if not service:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -75,14 +75,14 @@ def get_service(
     return service
 
 # Update service (provider only)
-@router.put("/{service_id}", response_model=Service)
+@router.put("/{service_id}", response_model=ServiceSchema)
 def update_service(
     service_id: int,
     service_data: ServiceUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = db.query(Service).filter(Service.id == service_id).first()
+    service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
     
     if not service:
         raise HTTPException(
@@ -112,7 +112,7 @@ def delete_service(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = db.query(Service).filter(Service.id == service_id).first()
+    service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
     
     if not service:
         raise HTTPException(

@@ -13,7 +13,7 @@ def send_password_reset_email(email: str, reset_token: str):
     """Send password reset email to user"""
     try:
         # Email configuration
-        smtp_server = "smtp.gmail.com"
+        smtp_server = "riddhikulkarni558@gmail.com"
         smtp_port = 587
         sender_email = os.getenv("SMTP_USER")
         sender_password = os.getenv("SMTP_PASSWORD")

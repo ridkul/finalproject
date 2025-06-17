@@ -14,3 +14,4 @@ class Service(Base):
     provider_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     provider = relationship("User", back_populates="services")
+    bookings = relationship("Booking", back_populates="service")

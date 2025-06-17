@@ -21,3 +21,4 @@ class User(Base):
         "eager_defaults": True
     }
     services = relationship("Service", back_populates="provider", cascade="all, delete-orphan")
+    bookings = relationship("Booking", back_populates="user", foreign_keys="Booking.user_id", cascade="all, delete-orphan")
