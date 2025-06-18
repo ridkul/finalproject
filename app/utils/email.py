@@ -11,9 +11,8 @@ load_dotenv(dotenv_path=env_path)
 
 def send_password_reset_email(email: str, reset_token: str):
     """Send password reset email to user"""
-    try:
-        # Email configuration
-        smtp_server = "riddhikulkarni558@gmail.com"
+    try:        # Email configuration
+        smtp_server = "smtp.gmail.com"
         smtp_port = 587
         sender_email = os.getenv("SMTP_USER")
         sender_password = os.getenv("SMTP_PASSWORD")
@@ -51,3 +50,48 @@ def send_password_reset_email(email: str, reset_token: str):
     except Exception as e:
         print(f"Error sending email: {e}")
         return False
+
+def send_welcome_email(email: str, name: str):
+    """Send welcome email to newly registered user"""
+    try:
+        # Email configuration
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        sender_email = os.getenv("SMTP_USER")
+        sender_password = os.getenv("SMTP_PASSWORD")
+        
+        # Create message
+        message = MIMEMultipart()
+        message["From"] = sender_email
+        message["To"] = email
+        message["Subject"] = "Welcome to Service Booking!"
+        
+        # HTML content
+        html = f"""
+        <html>
+            <body>
+                <h2>Welcome to Service Booking, {name}!</h2>
+                <p>Thank you for registering with our service. We're excited to have you on board!</p>
+                <p>You can now:</p>
+                <ul>
+                    <li>Browse available services</li>
+                    <li>Book appointments</li>
+                    <li>Manage your bookings</li>
+                </ul>
+                <p>If you have any questions, feel free to contact our support team.</p>
+            </body>
+        </html>
+        """
+        
+        message.attach(MIMEText(html, "html"))
+        
+        # Create SMTP session and send email
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.send_message(message)
+            
+    except Exception as e:
+        print(f"Failed to send welcome email: {str(e)}")
+        # Don't raise the exception as this is a background task
+        # and we don't want to block the registration process

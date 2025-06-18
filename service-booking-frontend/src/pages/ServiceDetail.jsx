@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 
 const ServiceDetail = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,27 +53,23 @@ const ServiceDetail = () => {
       <Typography variant="body1" paragraph sx={{ my: 3 }}>
         {service.description}
       </Typography>
-      
-      <Button variant="contained" color="primary" size="large">
+        <Button variant="contained" color="primary" size="large">
         Book This Service
       </Button>
+
+      {user && user.role === 'user' && (
+        <Button 
+          component={Link} 
+          to={`/chat/${service.provider_id}`}
+          variant="contained" 
+          color="secondary"
+          sx={{ mt: 2, mr: 2 }}
+        >
+          Message Provider
+        </Button>
+      )}
     </Container>
   );
 };
 
-// Inside the component
-const { user } = useAuth();
-
-// Add this to the UI
-{user && user.role === 'user' && (
-  <Button 
-    component={Link} 
-    to={`/chat/${service.provider_id}`}
-    variant="contained" 
-    color="secondary"
-    sx={{ mt: 2, mr: 2 }}
-  >
-    Message Provider
-  </Button>
-)}
 export default ServiceDetail;

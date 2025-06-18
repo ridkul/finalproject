@@ -26,16 +26,14 @@ function App() {
             <Route path="/dashboard" element={<ProviderDashboard />} />
           </Route>
           
+          <Route path="/chats" element={<ChatListPage />} />
+          <Route path="/chat/:otherUserId" element={<ChatPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
-      // Add these routes
-<Route path="/chats" element={<ChatListPage />} />
-<Route path="/chat/:otherUserId" element={<ChatPage />} />
     </AuthProvider>
   );
 }
-
 
 export default App;
 

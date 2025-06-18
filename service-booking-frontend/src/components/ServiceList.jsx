@@ -3,7 +3,15 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { Link } from 'react-router-dom';
 
-const ServiceList = ({ services, onEdit, onDelete, isProvider = false }) => {
+const ServiceList = ({ services, onEdit, onDelete, isProvider = false, loading = false, error = null }) => {
+  if (loading) {
+    return <Typography variant="body1">Loading services...</Typography>;
+  }
+
+  if (error) {
+    return <Typography color="error">{error}</Typography>;
+  }
+
   if (!services || services.length === 0) {
     return <Typography variant="body1">No services found</Typography>;
   }

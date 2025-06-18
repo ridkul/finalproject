@@ -1,34 +1,69 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Container, TextField, Button, Typography, Box, Alert, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 
 const RegisterPage = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('user');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'user'
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const formRef = useRef(null);
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Clear error when user types
+    if (error) setError('');
+  };
+
+  const validateForm = () => {
+    const { name, email, password } = formData;
+    
+    if (!name.trim()) {
+      setError('Name is required');
+      return false;
     }
     
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError('Invalid email format');
+      return false;
+    }
+    
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     try {
-      setError('');
       setLoading(true);
-      await register({ name, email, password, role });
+      setError('');
+      
+      // Optimized registration call
+      await register(formData);
+      
       navigate('/login');
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      console.error('Registration error:', err);
+      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -39,44 +74,57 @@ const RegisterPage = () => {
         </Typography>
       </Box>
       
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
       
-      <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+      <Box 
+        component="form" 
+        ref={formRef}
+        onSubmit={handleSubmit} 
+        sx={{ mt: 3 }}
+      >
         <TextField
+          name="name"
           label="Full Name"
           fullWidth
           margin="normal"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={formData.name}
+          onChange={handleChange}
           required
         />
         
         <TextField
+          name="email"
           label="Email Address"
           type="email"
           fullWidth
           margin="normal"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={formData.email}
+          onChange={handleChange}
           required
         />
         
         <TextField
+          name="password"
           label="Password"
           type="password"
           fullWidth
           margin="normal"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={formData.password}
+          onChange={handleChange}
           required
         />
         
         <FormControl fullWidth margin="normal" required>
           <InputLabel>Account Type</InputLabel>
           <Select
-            value={role}
+            name="role"
+            value={formData.role}
             label="Account Type"
-            onChange={(e) => setRole(e.target.value)}
+            onChange={handleChange}
           >
             <MenuItem value="user">Service User</MenuItem>
             <MenuItem value="provider">Service Provider</MenuItem>

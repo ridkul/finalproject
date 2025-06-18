@@ -6,6 +6,7 @@ import { getServices } from '../api/serviceApi';
 const ServiceListing = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
 
@@ -13,10 +14,13 @@ const ServiceListing = () => {
     const fetchServices = async () => {
       try {
         setLoading(true);
+        setError(null);
         const response = await getServices(category, location);
         setServices(response.data);
       } catch (err) {
         console.error('Error fetching services', err);
+        setError(err.response?.data?.detail || 'Failed to load services. Please try again.');
+        setServices([]);
       } finally {
         setLoading(false);
       }
@@ -30,8 +34,7 @@ const ServiceListing = () => {
       <Typography variant="h4" gutterBottom>
         Available Services
       </Typography>
-      
-      <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 3 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <TextField
@@ -39,6 +42,7 @@ const ServiceListing = () => {
               label="Filter by Category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              disabled={loading}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -47,6 +51,7 @@ const ServiceListing = () => {
               label="Filter by Location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+              disabled={loading}
             />
           </Grid>
         </Grid>

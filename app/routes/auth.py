@@ -1,35 +1,51 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, exists
+from fastapi.concurrency import run_in_threadpool
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserOut, Token, PasswordResetRequest, PasswordReset, UserLogin  # ADD UserLogin
+from app.schemas.user import UserCreate, UserOut, Token, PasswordResetRequest, PasswordReset, UserLogin
 from app.auth.hashing import hash_password, verify_password
 from app.auth.jwt_handler import create_access_token, create_password_reset_token, verify_reset_token
-from app.utils import send_password_reset_email
+from app.utils.email import send_welcome_email, send_password_reset_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserOut)
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user.email).first()
-    if existing_user:
+async def register(
+    user: UserCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    # Check for existing user - using async syntax
+    query = select(exists().where(User.email == user.email))
+    result = await db.execute(query)
+    if result.scalar():
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    hashed_password = hash_password(user.password)
+    # Hash password asynchronously
+    hashed_password = await run_in_threadpool(hash_password, user.password)
+    
     new_user = User(
         name=user.name,
         email=user.email,
         hashed_password=hashed_password,
         role=user.role
     )
+    
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()  # Use commit instead of flush in async context
+    await db.refresh(new_user)  # Refresh to get the new user's data
+    
+    # Move email sending to background
+    if user.role == "provider":
+        background_tasks.add_task(send_welcome_email, user.email, user.name)
+    
     return new_user
 
 # UPDATED LOGIN ENDPOINT TO USE UserLogin SCHEMA
 @router.post("/login", response_model=Token)
-def login(user_login: UserLogin, db: Session = Depends(get_db)):  # Changed parameter
+async def login(user_login: UserLogin, db: AsyncSession = Depends(get_db)):  # Changed parameter
     user = db.query(User).filter(User.email == user_login.email).first()
     if not user or not verify_password(user_login.password, user.hashed_password):
         raise HTTPException(
@@ -45,7 +61,7 @@ def login(user_login: UserLogin, db: Session = Depends(get_db)):  # Changed para
 async def forgot_password(
     request: PasswordResetRequest, 
     background_tasks: BackgroundTasks, 
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
@@ -57,7 +73,7 @@ async def forgot_password(
     return {"message": "Password reset email sent if account exists"}
 
 @router.post("/reset-password")
-def reset_password(request: PasswordReset, db: Session = Depends(get_db)):
+def reset_password(request: PasswordReset, db: AsyncSession = Depends(get_db)):
     email = verify_reset_token(request.token)
     if not email:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
