@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.database import get_db
 from app.models.service import Service as ServiceModel
 from app.models.user import User
@@ -9,9 +10,9 @@ from app.auth.jwt_handler import get_current_user
 router = APIRouter(prefix="/services", tags=["Services"])
 
 @router.post("/", response_model=ServiceSchema, status_code=status.HTTP_201_CREATED)
-def create_service(
+async def create_service(
     service: ServiceCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if current_user.role != "provider":
@@ -25,31 +26,32 @@ def create_service(
         provider_id=current_user.id
     )
     db.add(new_service)
-    db.commit()
-    db.refresh(new_service)
+    await db.commit()
+    await db.refresh(new_service)
     return new_service
 
 # Get all services (public endpoint)
 @router.get("/", response_model=list[ServiceSchema])
-def get_all_services(
-    db: Session = Depends(get_db),
+async def get_all_services(
+    db: AsyncSession = Depends(get_db),
     category: str = None,  # Optional filter
     location: str = None   # Optional filter
 ):
-    query = db.query(ServiceModel)
+    query = select(ServiceModel)
     
     if category:
-        query = query.filter(ServiceModel.category.ilike(f"%{category}%"))
+        query = query.where(ServiceModel.category.ilike(f"%{category}%"))
     
     if location:
-        query = query.filter(ServiceModel.location.ilike(f"%{location}%"))
+        query = query.where(ServiceModel.location.ilike(f"%{location}%"))
     
-    return query.all()
+    result = await db.execute(query)
+    return result.scalars().all()
 
 # Get services for current provider
 @router.get("/my-services", response_model=list[ServiceSchema])
-def get_my_services(
-    db: Session = Depends(get_db),
+async def get_my_services(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     if current_user.role != "provider":
@@ -58,15 +60,20 @@ def get_my_services(
             detail="Only providers can view their services"
         )
     
-    return db.query(ServiceModel).filter(ServiceModel.provider_id == current_user.id).all()
+    query = select(ServiceModel).where(ServiceModel.provider_id == current_user.id)
+    result = await db.execute(query)
+    return result.scalars().all()
 
 # Get single service by ID (public)
 @router.get("/{service_id}", response_model=ServiceSchema)
-def get_service(
+async def get_service(
     service_id: int,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
+    query = select(ServiceModel).where(ServiceModel.id == service_id)
+    result = await db.execute(query)
+    service = result.scalar_one_or_none()
+    
     if not service:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -76,13 +83,15 @@ def get_service(
 
 # Update service (provider only)
 @router.put("/{service_id}", response_model=ServiceSchema)
-def update_service(
+async def update_service(
     service_id: int,
     service_data: ServiceUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
+    query = select(ServiceModel).where(ServiceModel.id == service_id)
+    result = await db.execute(query)
+    service = result.scalar_one_or_none()
     
     if not service:
         raise HTTPException(
@@ -101,18 +110,20 @@ def update_service(
     for key, value in update_data.items():
         setattr(service, key, value)
     
-    db.commit()
-    db.refresh(service)
+    await db.commit()
+    await db.refresh(service)
     return service
 
 # Delete service (provider only)
 @router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_service(
+async def delete_service(
     service_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = db.query(ServiceModel).filter(ServiceModel.id == service_id).first()
+    query = select(ServiceModel).where(ServiceModel.id == service_id)
+    result = await db.execute(query)
+    service = result.scalar_one_or_none()
     
     if not service:
         raise HTTPException(
@@ -126,6 +137,6 @@ def delete_service(
             detail="Not authorized to delete this service"
         )
     
-    db.delete(service)
-    db.commit()
+    await db.delete(service)
+    await db.commit()
     return

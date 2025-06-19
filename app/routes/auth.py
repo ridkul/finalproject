@@ -45,9 +45,13 @@ async def register(
 
 # UPDATED LOGIN ENDPOINT TO USE UserLogin SCHEMA
 @router.post("/login", response_model=Token)
-async def login(user_login: UserLogin, db: AsyncSession = Depends(get_db)):  # Changed parameter
-    user = db.query(User).filter(User.email == user_login.email).first()
-    if not user or not verify_password(user_login.password, user.hashed_password):
+async def login(user_login: UserLogin, db: AsyncSession = Depends(get_db)):
+    # Use select statement for async query
+    query = select(User).where(User.email == user_login.email)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    
+    if not user or not await run_in_threadpool(verify_password, user_login.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
