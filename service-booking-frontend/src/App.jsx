@@ -30,6 +30,16 @@ function App() {
           <Route path="/chat/:otherUserId" element={<ChatPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+
+        // Add to your routes
+        <Route path="/payment/callback" element={<PaymentCallback />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/payment/failure" element={<PaymentFailure />} />
+        <Route path="/payment/verify" element={<PaymentVerify />} />
+        <Route path="/payment/create-order" element={<PaymentCreateOrder />} />
+        <Route path="/payment/checkout" element={<PaymentCheckout />} />
+        
+        {/* Add more routes as needed */}
       </Router>
     </AuthProvider>
   );
