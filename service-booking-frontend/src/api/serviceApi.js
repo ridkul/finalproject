@@ -23,3 +23,10 @@ export const updateService = (id, service) => {
 export const deleteService = (id) => {
     return api.delete(`/services/${id}`);
 };
+
+// Example API call
+fetch('/api/services')
+  .then(response => response.json())
+  .then(data => {
+     // Render services instead of "No services found"
+  });
