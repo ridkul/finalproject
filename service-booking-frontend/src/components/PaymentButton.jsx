@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { createPaymentOrder } from '../api/paymentApi';
-import { useAuth } from '../context/AuthContext';
 
 const PaymentButton = ({ booking, amount }) => {
   const [loading, setLoading] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
-  const [order, setOrder] = useState(null);
+  const [paymentLink, setPaymentLink] = useState('');
   const { user } = useAuth();
 
   const handlePayment = async () => {
@@ -19,7 +18,7 @@ const PaymentButton = ({ booking, amount }) => {
         amount: amount
       });
       
-      setOrder(response.data);
+      setPaymentLink(response.data.payment_link);
       setPaymentDialog(true);
     } catch (error) {
       console.error('Payment error:', error);
@@ -28,53 +27,28 @@ const PaymentButton = ({ booking, amount }) => {
     }
   };
 
-  const initRazorpay = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
+  const openPaymentWindow = () => {
+    const width = 600;
+    const height = 700;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    
+    window.open(
+      paymentLink,
+      'CashfreePayment',
+      `width=${width},height=${height},top=${top},left=${left}`
+    );
+    
+    // Listen for payment completion
+    window.addEventListener('message', handlePaymentMessage);
   };
 
-  const openRazorpay = async () => {
-    const isLoaded = await initRazorpay();
-    if (!isLoaded) {
-      alert('Razorpay SDK failed to load. Are you online?');
-      return;
+  const handlePaymentMessage = (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data.type === 'PAYMENT_COMPLETE') {
+      setPaymentDialog(false);
+      // Handle payment success
     }
-
-    const options = {
-      key: process.env.REACT_APP_RAZORPAY_KEY_ID,
-      amount: order.amount * 100,
-      currency: order.currency,
-      name: 'Service Booking Platform',
-      description: `Payment for Booking #${booking.id}`,
-      image: '/logo.png',
-      order_id: order.razorpay_order_id,
-      handler: async function(response) {
-        try {
-          // Verify payment on backend
-          await verifyPayment(response.razorpay_payment_id, response.razorpay_signature);
-          setPaymentDialog(false);
-          alert('Payment successful! Booking confirmed.');
-        } catch (error) {
-          console.error('Payment verification failed:', error);
-          alert('Payment verification failed. Please contact support.');
-        }
-      },
-      prefill: {
-        name: user.name,
-        email: user.email,
-      },
-      theme: {
-        color: '#3399cc'
-      }
-    };
-
-    const rzp = new window.Razorpay(options);
-    rzp.open();
   };
 
   return (
@@ -85,11 +59,11 @@ const PaymentButton = ({ booking, amount }) => {
         onClick={handlePayment}
         disabled={loading}
       >
-        {loading ? <CircularProgress size={24} /> : 'Pay Now'}
+        {loading ? <CircularProgress size={24} /> : 'Pay with Cashfree'}
       </Button>
 
       <Dialog open={paymentDialog} onClose={() => setPaymentDialog(false)}>
-        <DialogTitle>Confirm Payment</DialogTitle>
+        <DialogTitle>Complete Payment</DialogTitle>
         <DialogContent>
           <p>Booking #{booking.id}</p>
           <p>Amount: ₹{amount}</p>
@@ -100,7 +74,7 @@ const PaymentButton = ({ booking, amount }) => {
           <Button 
             variant="contained" 
             color="primary"
-            onClick={openRazorpay}
+            onClick={openPaymentWindow}
           >
             Proceed to Payment
           </Button>

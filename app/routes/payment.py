@@ -1,106 +1,103 @@
-import razorpay
-import os
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models import Payment, Booking
-from app.schemas import PaymentCreate, PaymentResponse
-from app.auth import get_current_user
+from app.services.cashfree_service import get_cashfree_client
+from datetime import datetime
+import json
 
-router = APIRouter(prefix="/payments", tags=["Payments"])
-
-# Initialize Razorpay client
-client = razorpay.Client(auth=(
-    os.getenv("RAZORPAY_KEY_ID"),
-    os.getenv("RAZORPAY_KEY_SECRET")
-))
-
+# Create Cashfree order
 @router.post("/create-order", response_model=PaymentResponse)
 def create_payment_order(
     payment_data: PaymentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Verify booking
-    booking = db.query(Booking).filter(
-        Booking.id == payment_data.booking_id,
-        Booking.user_id == current_user.id
-    ).first()
+    # ... booking verification ...
     
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
+    payments, _ = get_cashfree_client()
     
-    # Create Razorpay order
-    order_data = {
-        "amount": int(payment_data.amount * 100),  # Razorpay expects paise
-        "currency": "INR",
-        "receipt": f"booking_{booking.id}",
-        "payment_capture": 1  # Auto-capture payment
+    # Create order ID
+    order_id = f"ORDER_{int(datetime.now().timestamp())}_{booking.id}"
+    
+    # Create order request
+    order_request = {
+        "order_id": order_id,
+        "order_amount": float(payment_data.amount),
+        "order_currency": "INR",
+        "customer_details": {
+            "customer_id": str(current_user.id),
+            "customer_name": current_user.name,
+            "customer_email": current_user.email,
+            "customer_phone": ""  # Add if available
+        },
+        "order_meta": {
+            "return_url": f"{os.getenv('FRONTEND_URL')}/payment/callback?booking_id={booking.id}"
+        }
     }
     
     try:
-        razorpay_order = client.order.create(data=order_data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Payment gateway error: {str(e)}")
-    
-    # Create payment record
-    new_payment = Payment(
-        booking_id=booking.id,
-        amount=payment_data.amount,
-        razorpay_order_id=razorpay_order["id"],
-        status="created"
-    )
-    
-    db.add(new_payment)
-    db.commit()
-    db.refresh(new_payment)
-    
-    return {
-        "id": new_payment.id,
-        "booking_id": new_payment.booking_id,
-        "amount": new_payment.amount,
-        "currency": "INR",
-        "razorpay_order_id": new_payment.razorpay_order_id,
-        "status": new_payment.status
-    }
-
-@router.post("/verify")
-def verify_payment(
-    payment_id: str,
-    signature: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    # Get payment record
-    payment = db.query(Payment).filter(
-        Payment.razorpay_payment_id == payment_id
-    ).first()
-    
-    if not payment:
-        raise HTTPException(status_code=404, detail="Payment record not found")
-    
-    # Verify payment signature
-    params_dict = {
-        "razorpay_order_id": payment.razorpay_order_id,
-        "razorpay_payment_id": payment_id,
-        "razorpay_signature": signature
-    }
-    
-    try:
-        client.utility.verify_payment_signature(params_dict)
+        # Create Cashfree order
+        response = payments.create_order(order_request)
+        if response["status"] != "OK":
+            raise HTTPException(status_code=500, detail="Payment gateway error")
         
-        # Update payment record
-        payment.razorpay_payment_id = payment_id
-        payment.razorpay_signature = signature
-        payment.status = "success"
+        # Create payment record
+        new_payment = Payment(
+            booking_id=booking.id,
+            amount=payment_data.amount,
+            cashfree_order_id=order_id,
+            status="created"
+        )
+        
+        db.add(new_payment)
+        db.commit()
+        db.refresh(new_payment)
+        
+        return {
+            "id": new_payment.id,
+            "booking_id": new_payment.booking_id,
+            "amount": new_payment.amount,
+            "currency": "INR",
+            "cashfree_order_id": new_payment.cashfree_order_id,
+            "payment_link": response["payment_link"],
+            "status": new_payment.status
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cashfree error: {str(e)}")
+
+# Verify payment (webhook)
+@router.post("/webhook")
+async def cashfree_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    # Get signature from header
+    signature = request.headers.get("x-cf-signature")
+    
+    # Read raw body
+    body = await request.body()
+    
+    # Verify signature
+    payments, _ = get_cashfree_client()
+    if not payments.verify_webhook_signature(body, signature):
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    # Process webhook
+    data = await request.json()
+    order_id = data["orderId"]
+    
+    # Update payment status
+    payment = db.query(Payment).filter(
+        Payment.cashfree_order_id == order_id
+    ).first()
+    
+    if payment:
+        payment.status = data["orderStatus"].lower()
+        payment.cashfree_payment_id = data.get("referenceId", "")
+        payment.payment_method = data.get("paymentMethod", "")
         
         # Update booking status
-        payment.booking.status = "confirmed"
+        if data["orderStatus"] == "PAID":
+            payment.booking.status = "confirmed"
         
         db.commit()
-        
-        return {"status": "success", "message": "Payment verified"}
-    except razorpay.errors.SignatureVerificationError:
-        payment.status = "failed"
-        db.commit()
-        return {"status": "error", "message": "Invalid payment signature"}
+    
+    return {"status": "success"}
