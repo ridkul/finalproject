@@ -7,9 +7,15 @@ import ProviderDashboard from './pages/ProviderDashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ServiceDetail from './pages/ServiceDetail';
-// Add these imports
 import ChatPage from './pages/ChatPage';
 import ChatListPage from './pages/ChatListPage';
+import PaymentCallback from './pages/PaymentCallback';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFailure from './pages/PaymentFailure';
+import PaymentVerify from './pages/PaymentVerify';
+import PaymentCreateOrder from './pages/PaymentCreateOrder';
+import PaymentCheckout from './pages/PaymentCheckout';
+import BookingDetailPage from './pages/BookingDetailPage';
 
 function App() {
   return (
@@ -28,18 +34,15 @@ function App() {
           
           <Route path="/chats" element={<ChatListPage />} />
           <Route path="/chat/:otherUserId" element={<ChatPage />} />
+          <Route path="/payment/callback" element={<PaymentCallback />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/failure" element={<PaymentFailure />} />
+          <Route path="/payment/verify" element={<PaymentVerify />} />
+          <Route path="/payment/create-order" element={<PaymentCreateOrder />} />
+          <Route path="/payment/checkout" element={<PaymentCheckout />} />
+          <Route path="/booking/:id" element={<BookingDetailPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-
-        // Add to your routes
-        <Route path="/payment/callback" element={<PaymentCallback />} />
-        <Route path="/payment/success" element={<PaymentSuccess />} />
-        <Route path="/payment/failure" element={<PaymentFailure />} />
-        <Route path="/payment/verify" element={<PaymentVerify />} />
-        <Route path="/payment/create-order" element={<PaymentCreateOrder />} />
-        <Route path="/payment/checkout" element={<PaymentCheckout />} />
-        
-        {/* Add more routes as needed */}
       </Router>
     </AuthProvider>
   );

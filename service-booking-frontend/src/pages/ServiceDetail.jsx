@@ -53,7 +53,13 @@ const ServiceDetail = () => {
       <Typography variant="body1" paragraph sx={{ my: 3 }}>
         {service.description}
       </Typography>
-        <Button variant="contained" color="primary" size="large">
+        <Button 
+          component={Link}
+          to={`/booking/${service.id}`}
+          variant="contained" 
+          color="primary" 
+          size="large"
+        >
         Book This Service
       </Button>
 
